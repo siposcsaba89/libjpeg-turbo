@@ -255,6 +255,7 @@ endif()
 
 if(ENABLE_STATIC OR WITH_TURBOJPEG)
   add_library(jpeg-static STATIC ${JPEG_SOURCES} ${SIMD_OBJS})
+  target_include_directories(jpeg-static PUBLIC $<INSTALL_INTERFACE:include>)
   if(NOT MSVC)
     set_target_properties(jpeg-static PROPERTIES OUTPUT_NAME jpeg)
   endif()
@@ -279,6 +280,8 @@ if(WITH_TURBOJPEG)
     target_link_libraries(turbojpeg jpeg-static)
     set_target_properties(turbojpeg PROPERTIES LINK_INTERFACE_LIBRARIES "")
 
+    
+    
     add_executable(tjunittest tjunittest.c tjutil.c)
     target_link_libraries(tjunittest turbojpeg)
 
@@ -295,6 +298,7 @@ if(WITH_TURBOJPEG)
     if(NOT MSVC)
       set_target_properties(turbojpeg-static PROPERTIES OUTPUT_NAME turbojpeg)
     endif()
+    target_include_directories(turbojpeg-static PUBLIC $<INSTALL_INTERFACE:include>)
     if(WITH_SIMD)
       add_dependencies(turbojpeg-static simd)
     endif()
@@ -917,15 +921,15 @@ add_custom_target(installer
 
 if(WITH_TURBOJPEG)
   if(ENABLE_SHARED)
-    install(TARGETS turbojpeg tjbench
+    install(TARGETS turbojpeg tjbench EXPORT libjpeg-turbo-targets
       ARCHIVE DESTINATION lib
       LIBRARY DESTINATION lib
       RUNTIME DESTINATION bin)
   endif()
   if(ENABLE_STATIC)
-    install(TARGETS turbojpeg-static ARCHIVE DESTINATION lib)
+    install(TARGETS turbojpeg-static EXPORT libjpeg-turbo-targets ARCHIVE DESTINATION lib)
     if(NOT ENABLE_SHARED)
-      install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/tjbench-static.exe
+      install(TARGETS tjbench-static
         DESTINATION bin RENAME tjbench.exe)
     endif()
   endif()
@@ -933,13 +937,13 @@ if(WITH_TURBOJPEG)
 endif()
 
 if(ENABLE_STATIC)
-  install(TARGETS jpeg-static ARCHIVE DESTINATION lib)
+  install(TARGETS jpeg-static EXPORT libjpeg-turbo-targets ARCHIVE DESTINATION lib)
   if(NOT ENABLE_SHARED)
-    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cjpeg-static.exe
+    install(TARGETS cjpeg-static
       DESTINATION bin RENAME cjpeg.exe)
-    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/djpeg-static.exe
+    install(TARGETS djpeg-static
       DESTINATION bin RENAME djpeg.exe)
-    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/jpegtran-static.exe
+    install(TARGETS jpegtran-static
       DESTINATION bin RENAME jpegtran.exe)
   endif()
 endif()
@@ -959,4 +963,6 @@ install(FILES ${CMAKE_BINARY_DIR}/jconfig.h ${CMAKE_SOURCE_DIR}/jerror.h
 configure_file("${CMAKE_SOURCE_DIR}/cmakescripts/cmake_uninstall.cmake.in"
   "cmake_uninstall.cmake" IMMEDIATE @ONLY)
 
+install(EXPORT libjpeg-turbo-targets DESTINATION lib/cmake/libjpeg-turbo NAMESPACE jpeg:: FILE libjpeg-turbo-config.cmake)
+  
 add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P cmake_uninstall.cmake)
