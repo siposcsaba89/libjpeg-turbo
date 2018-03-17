@@ -29,8 +29,27 @@ pad_number(VERSION_MINOR 3)
 pad_number(VERSION_REVISION 3)
 set(LIBJPEG_TURBO_VERSION_NUMBER ${VERSION_MAJOR}${VERSION_MINOR}${VERSION_REVISION})
 
-if(NOT WIN32)
+
+if(CYGWIN OR NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+  execute_process(COMMAND "date" "+%Y%m%d" OUTPUT_VARIABLE BUILD)
+  string(REGEX REPLACE "\n" "" BUILD ${BUILD})
+elseif(WIN32)
+  execute_process(COMMAND "wmic.exe" "os" "get" "LocalDateTime" OUTPUT_VARIABLE
+    BUILD)
+  string(REGEX REPLACE "[^0-9]" "" BUILD "${BUILD}")
+  if (BUILD STREQUAL "")
+    execute_process(COMMAND "cmd.exe" "/C" "DATE" "/T" OUTPUT_VARIABLE BUILD)
+    string(REGEX REPLACE ".*[ ]([0-9]*)[/.]([0-9]*)[/.]([0-9]*).*" "\\3\\2\\1" BUILD "${BUILD}")
+  else()
+    string(SUBSTRING "${BUILD}" 0 8 BUILD)
+  endif()
+else()
   message(FATAL_ERROR "Platform not supported by this build system.  Use autotools instead.")
+endif()
+
+if(NOT WIN32)
+  #message(FATAL_ERROR "Platform not supported by this build system.  Use autotools instead.")
+  add_definitions(-DSIZEOF_SIZE_T=${CMAKE_SIZEOF_VOID_P})
 endif()
 
 string(TIMESTAMP BUILD "%Y%m%d")
@@ -271,6 +290,11 @@ if(WITH_TURBOJPEG)
     include_directories(${JAVA_INCLUDE_PATH} ${JAVA_INCLUDE_PATH2})
   endif()
 
+
+  if (UNIX)
+    find_library(M_LIBRARY m)
+  endif()
+
   if(ENABLE_SHARED)
     add_library(turbojpeg SHARED ${TURBOJPEG_SOURCES})
     set_target_properties(turbojpeg PROPERTIES DEFINE_SYMBOL DLLDEFINE)
@@ -278,6 +302,9 @@ if(WITH_TURBOJPEG)
       set_target_properties(turbojpeg PROPERTIES LINK_FLAGS -Wl,--kill-at)
     endif()
     target_link_libraries(turbojpeg jpeg-static)
+    if (UNIX)
+      target_link_libraries(turbojpeg ${M_LIBRARY})
+    endif()
     set_target_properties(turbojpeg PROPERTIES LINK_INTERFACE_LIBRARIES "")
 
     
@@ -287,7 +314,10 @@ if(WITH_TURBOJPEG)
 
     add_executable(tjbench tjbench.c bmp.c tjutil.c rdbmp.c rdppm.c wrbmp.c
       wrppm.c)
-    target_link_libraries(tjbench turbojpeg jpeg-static)
+    if (UNIX)
+      target_link_libraries(turbojpeg ${M_LIBRARY})
+    endif()
+    target_link_libraries(tjbench turbojpeg jpeg-static m)
     set_property(TARGET tjbench PROPERTY COMPILE_FLAGS
       "-DBMP_SUPPORTED -DPPM_SUPPORTED")
   endif()
@@ -309,15 +339,23 @@ if(WITH_TURBOJPEG)
     add_executable(tjbench-static tjbench.c bmp.c tjutil.c rdbmp.c rdppm.c
       wrbmp.c wrppm.c)
     target_link_libraries(tjbench-static turbojpeg-static jpeg-static)
+    if (UNIX)
+      target_link_libraries(tjbench-static ${M_LIBRARY})
+    endif()
     set_property(TARGET tjbench-static PROPERTY COMPILE_FLAGS
       "-DBMP_SUPPORTED -DPPM_SUPPORTED")
   endif()
 endif()
 
+if(WIN32 OR CYGWIN)
+   set(COMPILE_FLAGS "${COMPILE_FLAGS} -DUSE_SETMODE")
+endif()
+
+
 if(WITH_12BIT)
-  set(COMPILE_FLAGS "-DGIF_SUPPORTED -DPPM_SUPPORTED -DUSE_SETMODE")
+  set(COMPILE_FLAGS "-DGIF_SUPPORTED -DPPM_SUPPORTED")
 else()
-  set(COMPILE_FLAGS "-DBMP_SUPPORTED -DGIF_SUPPORTED -DPPM_SUPPORTED -DTARGA_SUPPORTED -DUSE_SETMODE")
+  set(COMPILE_FLAGS "-DBMP_SUPPORTED -DGIF_SUPPORTED -DPPM_SUPPORTED -DTARGA_SUPPORTED")
   set(CJPEG_BMP_SOURCES rdbmp.c rdtarga.c)
   set(DJPEG_BMP_SOURCES wrbmp.c wrtarga.c)
 endif()
@@ -335,7 +373,6 @@ if(ENABLE_STATIC)
 
   add_executable(jpegtran-static jpegtran.c cdjpeg.c rdswitch.c transupp.c)
   target_link_libraries(jpegtran-static jpeg-static)
-  set_property(TARGET jpegtran-static PROPERTY COMPILE_FLAGS "-DUSE_SETMODE")
 endif()
 
 add_executable(rdjpgcom rdjpgcom.c)
