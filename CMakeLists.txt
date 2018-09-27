@@ -572,7 +572,7 @@ if(ENABLE_SHARED)
 endif()
 
 if(ENABLE_STATIC OR WITH_TURBOJPEG)
-  add_library(jpeg-static STATIC ${JPEG_SOURCES} ${SIMD_OBJS})
+  add_library(jpeg-static STATIC ${JPEG_SOURCES} ${SIMD_OBJS} $<TARGET_OBJECTS:simd>)
   target_include_directories(jpeg-static PUBLIC $<INSTALL_INTERFACE:include>)
   if(NOT MSVC)
     set_target_properties(jpeg-static PROPERTIES OUTPUT_NAME jpeg)
@@ -649,7 +649,7 @@ if(WITH_TURBOJPEG)
       md5/md5hl.c)
     target_link_libraries(tjunittest-static turbojpeg-static)
 
-    add_executable(tjbench-static tjbench.c bmp.c tjutil.c rdbmp.c rdppm.c
+    add_executable(tjbench-static tjbench.c tjutil.c rdbmp.c rdppm.c
       wrbmp.c wrppm.c)
     target_link_libraries(tjbench-static turbojpeg-static jpeg-static)
     if (UNIX)
